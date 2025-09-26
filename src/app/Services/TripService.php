@@ -103,11 +103,9 @@ class TripService
                 throw new ModelNotFoundException('No drivers assigned to team');
             }
 
-            $perDriverBase = floor($data['amount'] * 100 / count($drivers)) / 100;
-            $remainder = round($data['amount'] - ($perDriverBase * count($drivers)), 2);
+            $shares = $this->calculateDriverShares($trip, (float) $data['amount'], $drivers, null);
 
-            foreach ($drivers as $index => $driverId) {
-                $amount = $perDriverBase + (($index === 0) ? $remainder : 0);
+            foreach ($shares as $driverId => $amount) {
                 TripExpensesDriver::create([
                     'trip_expense_id' => $expense->id,
                     'user_id' => $driverId,
@@ -148,11 +146,9 @@ class TripService
             $team = Team::findOrFail($trip->team_id);
             $drivers = $team->drivers()->pluck('users.id')->all();
 
-            $perDriverBase = floor($data['amount'] * 100 / count($drivers)) / 100;
-            $remainder = round($data['amount'] - ($perDriverBase * count($drivers)), 2);
+            $shares = $this->calculateDriverShares($trip, (float) $data['amount'], $drivers, $expense->id);
 
-            foreach ($drivers as $index => $driverId) {
-                $amount = $perDriverBase + (($index === 0) ? $remainder : 0);
+            foreach ($shares as $driverId => $amount) {
                 TripExpensesDriver::create([
                     'trip_expense_id' => $expense->id,
                     'user_id' => $driverId,
@@ -182,6 +178,79 @@ class TripService
             $expense->driverShares()->delete();
             $this->tripExpenseRepository->delete($expense);
         });
+    }
+
+    /**
+     * Calculate per-driver shares for a given amount, ensuring the difference between
+     * any two drivers' cumulative totals on the trip is at most 0.01 after allocation.
+     * The extra cents are given to the drivers with the lowest cumulative totals first
+     * (ties broken by ascending user_id).
+     *
+     * @param Trip $trip
+     * @param float $amount
+     * @param array<int,int> $driverIds
+     * @param int|null $excludeExpenseId When updating, exclude this expense from historical totals
+     * @return array<int,float> Map of user_id => amount
+     */
+    private function calculateDriverShares(Trip $trip, float $amount, array $driverIds, ?int $excludeExpenseId = null): array
+    {
+        $numDrivers = count($driverIds);
+        if ($numDrivers === 0) {
+            return [];
+        }
+
+        $amountCents = (int) round($amount * 100);
+        $baseShareCents = intdiv($amountCents, $numDrivers);
+        $remainderCents = $amountCents % $numDrivers;
+
+        // Get current cumulative totals per driver for this trip (in cents), excluding the expense if provided
+        $totals = array_fill_keys($driverIds, 0);
+
+        $query = DB::table('trip_expenses_drivers as ted')
+            ->join('trip_expenses as te', 'te.id', '=', 'ted.trip_expense_id')
+            ->where('te.trip_id', '=', $trip->id)
+            ->when($excludeExpenseId !== null, function ($q) use ($excludeExpenseId) {
+                $q->where('te.id', '!=', $excludeExpenseId);
+            })
+            ->selectRaw('ted.user_id, SUM(ted.amount) as total_amount')
+            ->groupBy('ted.user_id')
+            ->get();
+
+        foreach ($query as $row) {
+            $uid = (int) $row->user_id;
+            if (array_key_exists($uid, $totals)) {
+                $totals[$uid] = (int) round(((float) $row->total_amount) * 100);
+            }
+        }
+
+        // Determine which drivers get the remainder cents: sort by current total asc, then by user_id asc
+        $sortedDriverIds = array_keys($totals);
+        usort($sortedDriverIds, function ($left, $right) use ($totals) {
+            if ($totals[$left] === $totals[$right]) {
+                return $left <=> $right;
+            }
+            return $totals[$left] <=> $totals[$right];
+        });
+
+        $result = [];
+
+        // Assign base share to all
+        foreach ($driverIds as $userId) {
+            $result[$userId] = $baseShareCents;
+        }
+
+        // Distribute remainder cents to the lowest totals first
+        for ($i = 0; $i < $remainderCents; $i++) {
+            $userId = $sortedDriverIds[$i % $numDrivers];
+            $result[$userId] += 1;
+        }
+
+        // Convert back to dollars
+        foreach ($result as $userId => $cents) {
+            $result[$userId] = round($cents / 100, 2);
+        }
+
+        return $result;
     }
 }
 
