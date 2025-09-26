@@ -2,6 +2,8 @@
 
 How to run:
 
+Prerequisites: download and install Docker - https://www.docker.com/products/docker-desktop/
+
 1. Clone the repository
 2. run `docker-compose up --build` in the root directory
 3. run `docker exec -it inovatyvus-driver-laravel bash` to enter the container
@@ -9,4 +11,6 @@ How to run:
 6. run `php artisan key:generate` to generate the application key
 7. run `composer install` to install dependencies
 8. run `php app:init` to run migration and data seeding
+
+9. In order to see the results please open http://localhost/reports
 
