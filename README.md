@@ -8,6 +8,5 @@ How to run:
 5. run `cp .env.example .env` to create the environment file
 6. run `php artisan key:generate` to generate the application key
 7. run `composer install` to install dependencies
-8. run `php artisan migrate` to run migrations
-9. run `php artisan db:seed` to seed the database
+8. run `php app:init` to run migration and data seeding
 
