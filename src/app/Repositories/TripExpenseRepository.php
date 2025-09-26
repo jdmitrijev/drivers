@@ -8,7 +8,7 @@ class TripExpenseRepository
 {
     public function find(int $id): ?TripExpense
     {
-        return TripExpense::with('driverShares')->find($id);
+        return TripExpense::with(['driverShares', 'expenseType'])->find($id);
     }
 
     public function create(array $data): TripExpense
