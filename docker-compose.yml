@@ -1,0 +1,66 @@
+services:
+  app:
+    container_name: inovatyvus-driver-laravel
+    working_dir: /var/www/src
+    volumes:
+      - ./src:/var/www/src
+    networks:
+      - inovatyvus-driver
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - postgres
+      - inovatyvus-driver-test-postgres
+
+  webserver:
+    image: nginx:alpine
+    container_name: inovatyvus-driver-nginx
+    restart: unless-stopped
+    ports:
+      - "8085:80"
+    volumes:
+      - ./src:/var/www/src
+      - ./docker-config/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - inovatyvus-driver
+    depends_on:
+      - app
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: inovatyvus-driver-postgres
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: inovatyvus-driver
+      POSTGRES_USER: inovatyvus-driver
+      POSTGRES_PASSWORD: inovatyvus-driver
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    networks:
+      - inovatyvus-driver
+
+  inovatyvus-driver-test-postgres:
+    image: postgres:17-alpine
+    container_name: inovatyvus-driver-test-postgres
+    ports:
+      - "5433:5432"
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: inovatyvus-driver_test
+      POSTGRES_USER: inovatyvus-driver
+      POSTGRES_PASSWORD: inovatyvus-driver
+    volumes:
+      - dbdata_test:/var/lib/postgresql/data-test
+    networks:
+      - inovatyvus-driver
+
+networks:
+  inovatyvus-driver:
+    name: inovatyvus-driver
+
+volumes:
+  dbdata:
+  dbdata_test:
