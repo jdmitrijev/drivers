@@ -1,0 +1,210 @@
+{
+  "info": {
+    "name": "Drivers API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Postman collection for Drivers API v1 covering expense-types, teams, trips, and trip expenses. Uses variables to chain IDs between requests."
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "{{protocol}}://{{host}}/api/v1", "type": "string" },
+    { "key": "protocol", "value": "http", "type": "string" },
+    { "key": "host", "value": "localhost", "type": "string" },
+    { "key": "expenseTypeId", "value": "", "type": "string" },
+    { "key": "teamId", "value": "", "type": "string" },
+    { "key": "tripId", "value": "", "type": "string" },
+    { "key": "tripExpenseId", "value": "", "type": "string" },
+    { "key": "userId1", "value": "1", "type": "string" }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {"type": "text/javascript", "exec": [
+        "// Ensure protocol and host exist",
+        "pm.collectionVariables.set('protocol', pm.collectionVariables.get('protocol') || 'http');",
+        "pm.collectionVariables.set('host', pm.collectionVariables.get('host') || 'localhost');"
+      ]}
+    }
+  ],
+  "item": [
+    {
+      "name": "Expense Types",
+      "item": [
+        {
+          "name": "List Expense Types",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/expense-types?q=Fuel&page=1&per_page=1"
+          }
+        },
+        {
+          "name": "Create Expense Type",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"Fuel (EFS)\"\n}"},
+            "url": "{{baseUrl}}/expense-types"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"type": "text/javascript", "exec": [
+              "pm.test('Created', function () { pm.response.to.have.status(201); });",
+              "const id = pm.response.json().id; if (id) pm.collectionVariables.set('expenseTypeId', id.toString());"
+            ]}
+          }]
+        },
+        {
+          "name": "Show Expense Type",
+          "request": {"method": "GET", "url": "{{baseUrl}}/expense-types/{{expenseTypeId}}"}
+        },
+        {
+          "name": "Update Expense Type",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"Updated Name\"\n}"},
+            "url": "{{baseUrl}}/expense-types/{{expenseTypeId}}"
+          }
+        },
+        {
+          "name": "Delete Expense Type",
+          "request": {"method": "DELETE", "url": "{{baseUrl}}/expense-types/{{expenseTypeId}}"}
+        }
+      ]
+    },
+    {
+      "name": "Teams",
+      "item": [
+        {
+          "name": "List Teams",
+          "request": {"method": "GET", "url": "{{baseUrl}}/teams?q=Alpha&page=1&per_page=1"}
+        },
+        {
+          "name": "Create Team",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"Alpha Team\",\n  \"max_members\": 1\n}"},
+            "url": "{{baseUrl}}/teams"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"type": "text/javascript", "exec": [
+              "pm.test('Created', function () { pm.response.to.have.status(201); });",
+              "const id = pm.response.json().id; if (id) pm.collectionVariables.set('teamId', id.toString());"
+            ]}
+          }]
+        },
+        {
+          "name": "Show Team",
+          "request": {"method": "GET", "url": "{{baseUrl}}/teams/{{teamId}}"}
+        },
+        {
+          "name": "Update Team",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"Updated Name\",\n  \"max_members\": 1\n}"},
+            "url": "{{baseUrl}}/teams/{{teamId}}"
+          }
+        },
+        {
+          "name": "Add Driver to Team",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"user_id\": {{userId1}}\n}"},
+            "url": "{{baseUrl}}/teams/{{teamId}}/drivers"
+          }
+        },
+        {
+          "name": "Remove Driver from Team (optional - run after expenses if needed)",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"user_id\": {{userId1}}\n}"},
+            "url": "{{baseUrl}}/teams/{{teamId}}/drivers"
+          }
+        },
+        {
+          "name": "Delete Team",
+          "request": {"method": "DELETE", "url": "{{baseUrl}}/teams/{{teamId}}"}
+        }
+      ]
+    },
+    {
+      "name": "Trips",
+      "item": [
+        {
+          "name": "List Trips",
+          "request": {"method": "GET", "url": "{{baseUrl}}/trips?q=Chicago&page=1&per_page=1"}
+        },
+        {
+          "name": "Create Trip",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"from\": \"LA\",\n  \"to\": \"SF\",\n  \"team_id\": {{teamId}},\n  \"start_date\": \"{{today}}\",\n  \"end_date\": \"{{today}}\"\n}"},
+            "url": "{{baseUrl}}/trips"
+          },
+          "event": [{
+            "listen": "prerequest",
+            "script": {"type": "text/javascript", "exec": [
+              "const d = new Date(); const iso = d.toISOString().slice(0,10); pm.variables.set('today', iso);"
+            ]}
+          },{
+            "listen": "test",
+            "script": {"type": "text/javascript", "exec": [
+              "pm.test('Created', function () { pm.response.to.have.status(201); });",
+              "const id = pm.response.json().id; if (id) pm.collectionVariables.set('tripId', id.toString());"
+            ]}
+          }]
+        },
+        {
+          "name": "Show Trip",
+          "request": {"method": "GET", "url": "{{baseUrl}}/trips/{{tripId}}"}
+        },
+        {
+          "name": "Update Trip",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"to\": \"San Jose\"\n}"},
+            "url": "{{baseUrl}}/trips/{{tripId}}"
+          }
+        },
+        {
+          "name": "Create Expense for Trip",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"expense_id\": {{expenseTypeId}},\n  \"amount\": 100.01\n}"},
+            "url": "{{baseUrl}}/trips/{{tripId}}/expenses"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"type": "text/javascript", "exec": [
+              "pm.test('Created', function () { pm.response.to.have.status(201); });",
+              "const id = pm.response.json().id; if (id) pm.collectionVariables.set('tripExpenseId', id.toString());"
+            ]}
+          }]
+        },
+        {
+          "name": "Update Trip Expense",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"amount\": 1.01\n}"},
+            "url": "{{baseUrl}}/trips/{{tripId}}/expenses/{{tripExpenseId}}"
+          }
+        },
+        {
+          "name": "Delete Trip Expense",
+          "request": {"method": "DELETE", "url": "{{baseUrl}}/trips/{{tripId}}/expenses/{{tripExpenseId}}"}
+        },
+        {
+          "name": "Delete Trip",
+          "request": {"method": "DELETE", "url": "{{baseUrl}}/trips/{{tripId}}"}
+        }
+      ]
+    }
+  ]
+}
