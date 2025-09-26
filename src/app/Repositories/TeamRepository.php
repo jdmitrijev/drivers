@@ -11,7 +11,7 @@ class TeamRepository
 {
     public function paginate(int $perPage = 15, ?string $search = null, ?int $page = null): LengthAwarePaginator
     {
-        $query = Team::query();
+        $query = Team::query()->with('drivers');
         if ($search) {
             $query->where('name', 'like', '%'.$search.'%');
         }
@@ -20,12 +20,12 @@ class TeamRepository
 
     public function all(): Collection
     {
-        return Team::orderBy('name')->get();
+        return Team::with('drivers')->orderBy('name')->get();
     }
 
     public function find(int $id): ?Team
     {
-        return Team::find($id);
+        return Team::with('drivers')->find($id);
     }
 
     public function create(array $data): Team

@@ -22,12 +22,12 @@ class TripRepository
 
     public function all(): Collection
     {
-        return Trip::orderByDesc('id')->get();
+        return Trip::with('team')->orderByDesc('id')->get();
     }
 
     public function find(int $id): ?Trip
     {
-        return Trip::with(['team', 'expenses.driverShares'])->find($id);
+        return Trip::with(['team', 'expenses.driverShares', 'expenses.expenseType'])->find($id);
     }
 
     public function create(array $data): Trip
